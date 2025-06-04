@@ -1,0 +1,104 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<interface>
+  <object class="GtkWindow" id="main_window">
+    <property name="title">Home Trainer Interface</property>
+    <property name="default_width">800</property>
+    <property name="default_height">600</property>
+    <child>
+      <object class="GtkBox" id="main_vbox">
+        <property name="orientation">vertical</property>
+        <property name="spacing">10</property>
+        <property name="margin">10</property>
+        <child>
+          <object class="GtkFrame" id="frame_controls">
+            <property name="label">Contrôle de la session</property>
+            <child>
+              <object class="GtkBox" id="controls_box">
+                <property name="orientation">horizontal</property>
+                <property name="spacing">10</property>
+                <child>
+                  <object class="GtkButton" id="button_start">
+                    <property name="label">Démarrer</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="button_pause">
+                    <property name="label">Pause</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkFrame" id="frame_data">
+            <property name="label">Données de performance</property>
+            <child>
+              <object class="GtkBox" id="data_box"><property name="orientation">vertical</property><property name="spacing">10</property><child><object class="GtkBox"><property name="orientation">horizontal</property><property name="spacing">20</property><child><object class="GtkLabel"><property name="label">Instantanée</property><property name="xalign">0</property><attributes>&lt;attributes&gt;&lt;attribute name="scale" value="2"/&gt;&lt;/attributes&gt;</attributes></object></child><child><object class="GtkLabel" id="label_vitesse_instantanée"><property name="label">0</property><attributes>&lt;attributes&gt;&lt;attribute name="scale" value="3"/&gt;&lt;/attributes&gt;</attributes><property name="xalign">0.5</property></object></child><child><object class="GtkLabel" id="label_cadence_instantanée"><property name="label">0</property><attributes>&lt;attributes&gt;&lt;attribute name="scale" value="3"/&gt;&lt;/attributes&gt;</attributes><property name="xalign">0.5</property></object></child><child><object class="GtkLabel" id="label_puissance_instantanée"><property name="label">0</property><attributes>&lt;attributes&gt;&lt;attribute name="scale" value="3"/&gt;&lt;/attributes&gt;</attributes><property name="xalign">0.5</property></object></child></object></child><child><object class="GtkBox"><property name="orientation">horizontal</property><property name="spacing">20</property><child><object class="GtkLabel"><property name="label">Moyenne</property><property name="xalign">0</property><attributes>&lt;attributes&gt;&lt;attribute name="scale" value="2"/&gt;&lt;/attributes&gt;</attributes></object></child><child><object class="GtkLabel" id="label_vitesse_moyenne"><property name="label">0</property><attributes>&lt;attributes&gt;&lt;attribute name="scale" value="3"/&gt;&lt;/attributes&gt;</attributes><property name="xalign">0.5</property></object></child><child><object class="GtkLabel" id="label_cadence_moyenne"><property name="label">0</property><attributes>&lt;attributes&gt;&lt;attribute name="scale" value="3"/&gt;&lt;/attributes&gt;</attributes><property name="xalign">0.5</property></object></child><child><object class="GtkLabel" id="label_puissance_moyenne"><property name="label">0</property><attributes>&lt;attributes&gt;&lt;attribute name="scale" value="3"/&gt;&lt;/attributes&gt;</attributes><property name="xalign">0.5</property></object></child></object></child><child><object class="GtkBox"><property name="orientation">horizontal</property><property name="spacing">20</property><child><object class="GtkLabel"><property name="label">Max</property><property name="xalign">0</property><attributes>&lt;attributes&gt;&lt;attribute name="scale" value="2"/&gt;&lt;/attributes&gt;</attributes></object></child><child><object class="GtkLabel" id="label_vitesse_max"><property name="label">0</property><attributes>&lt;attributes&gt;&lt;attribute name="scale" value="3"/&gt;&lt;/attributes&gt;</attributes><property name="xalign">0.5</property></object></child><child><object class="GtkLabel" id="label_cadence_max"><property name="label">0</property><attributes>&lt;attributes&gt;&lt;attribute name="scale" value="3"/&gt;&lt;/attributes&gt;</attributes><property name="xalign">0.5</property></object></child><child><object class="GtkLabel" id="label_puissance_max"><property name="label">0</property><attributes>&lt;attributes&gt;&lt;attribute name="scale" value="3"/&gt;&lt;/attributes&gt;</attributes><property name="xalign">0.5</property></object></child></object></child></object></child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkFrame" id="frame_program">
+            <property name="label">Programme en cours</property>
+            <child>
+              <object class="GtkBox" id="program_box">
+                <property name="orientation">vertical</property>
+                <property name="spacing">10</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">horizontal</property>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label">Puissance cible :</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="label_power_target">
+                        <property name="label">0</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">horizontal</property>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label">Temps écoulé :</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="label_time_elapsed">
+                        <property name="label">0</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">horizontal</property>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label">Temps restant :</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="label_time_remaining">
+                        <property name="label">0</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkProgressBar" id="progress_bar">
+                    <property name="show_text">True</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>
