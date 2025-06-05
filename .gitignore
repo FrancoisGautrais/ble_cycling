@@ -3,3 +3,4 @@
 /.venv313/
 /build/
 /src/ble_sequencer.egg-info/
+/.idea/
