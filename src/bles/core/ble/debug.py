@@ -4,10 +4,10 @@ import time
 from abc import abstractmethod
 from asyncio import Queue
 
-from bles.ble.base import BaseBleClient, EventMixin, Exit, register_ble_client, Message
-from bles.ble import features
-from bles.ble.fitness import SetResistance, SetPower, SetSimulationParam, CyclingData
-from bles.ble.heart import HRSState
+from bles.core.ble.base import BaseBleClient, EventMixin, Exit, register_ble_client, Message
+from bles.core.ble import features
+from bles.core.ble.fitness import SetResistance, SetPower, SetSimulationParam, CyclingData
+from bles.core.ble.heart import HRSState
 
 
 

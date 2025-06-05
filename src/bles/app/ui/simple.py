@@ -9,15 +9,170 @@ import requests
 from bles.api import ServerInterface
 from bles.common.config import config
 from bles.common.timer import Timer
-from bles.sequencer.base import ControllableSequencer
-from bles.simulator.base_simulator import PowerSimulator
+from bles.core.driver.base import BaseDriver
+from bles.core.sequencer.base import ControllableSequencer
+from bles.core.simulator.base_simulator import PowerSimulator
 from tkinter import messagebox, ttk
 
-from bles.stats.base import Stat, Point
+from bles.app.stats.base import Stat, Point
 
 
 class ApiException(Exception):
     pass
+
+class ApiDriver(BaseDriver):
+
+    def __init__(self, host, port, timer_period=None, on_data=None, debug=True):
+        self.host = host
+        self.port = port
+        self._started = False
+        self._paused = False
+        self._debug = debug
+        self._timer = None
+        self._on_data_handler = on_data
+        self._status = None
+        self._current_controller = None
+        self.timer_period = timer_period
+
+    def init(self):
+        while True:
+            try:
+                self.get_status()
+            except:
+                time.sleep(0.3)
+                continue
+            break
+
+        if self.timer_period:
+            self._timer = Timer(self._on_timer, self.timer_period)
+            self._timer.start()
+        self.start_timer()
+
+    def start_timer(self):
+        if self.timer_period and not self._timer:
+            self._timer = Timer(self._on_timer, self.timer_period)
+            self._timer.start()
+
+    def _on_timer(self):
+        if self._started and not self._paused:
+            data = self._get_queued_data()
+            if self._on_data_handler is None: return
+            for d in data:
+                self._on_data_handler("", d)
+
+
+    def stop_timer(self):
+        if self._timer: self._timer.stop()
+
+    def _get(self, url, **kwargs):
+        return requests.get(f"http://{self.host}:{self.port}{url}", **kwargs)
+
+
+    def _post(self, url, **kwargs):
+        return requests.post(f"http://{self.host}:{self.port}{url}", **kwargs)
+
+
+    def _assert_app_running(self):
+        if self._status is None or self._status["status"] != "RUNNING":
+            raise ApiException(f"L'application n'est pas en cours")
+
+
+    def _assert_app_started(self):
+        if self._status is None or self._status["status"] not in ("RUNNING", "PAUSED"):
+            raise ApiException(f"L'application n'est pas en cours")
+
+    def get_controller_name(self):
+        return self._current_controller
+
+    def use_controller(self, name):
+        self._current_controller = name
+        self._get(f"/sequencer/controllers/{name}/use")
+
+    def on_data(self, feature, data):
+        pass
+
+    def pause(self):
+        if self._started:
+            self._get("/sequencer/pause")
+            self._paused = True
+        else:
+            raise ApiException(f"L'application n'est pas lancé")
+
+    def resume(self):
+        if not self._started:
+            self._get("/sequencer/resume")
+            self._paused = False
+        else:
+            raise ApiException(f"L'application n'est pas lancé")
+
+    def start(self):
+        self._get("/sequencer/start")
+        self._started = True
+        self._paused = False
+
+    def stop(self):
+        self._get("/sequencer/stop")
+        self._started = False
+        self._paused = False
+
+    def get_status(self):
+        ret = self._get("/sequencer/status")
+        self._status =  ret.json()
+        return self._status
+
+
+    def _get_queued_data(self):
+        ret = self._get("/queued_data")
+        return ret.json()
+
+
+    def ctrl_set_prop(self, name, value):
+        ret = self._get(f"/sequencer/controller/prop/{name}/{value}")
+        return ret.json()
+
+    def ctrl_get_prop(self, name, value):
+        ret = self._get(f"/sequencer/controller/prop/{name}/{value}")
+        return ret.json()
+
+    def ctrl_call_function(self, name, data):
+        payload = {
+            "name" : name,
+            "arguments" : {"power" : data}
+        }
+        ret =  self._post(f"/sequencer/controller/call", json=payload)
+        print("heere", payload, ret.json())
+        return ret.json()
+
+class LocalApiDriver:
+    def __init__(self, on_data, debug=False):
+        self._sequencer = None
+        self._server = None
+        self.driver = None
+        self._on_data_handler = on_data
+        self._debug = debug
+
+    def server_start(self):
+        self._sequencer = ControllableSequencer(config.sequencer)
+        self._server = ServerInterface(
+            host=config.app_host,
+            port=config.app_port,
+            sequencer=self._sequencer)
+        self._server.run_server(True)
+        self.driver = ApiDriver(config.app_host, config.app_port, 1, on_data=self._on_data_handler)
+        if self._debug:
+            self._sequencer.use_simulator(PowerSimulator(init_freq=80))
+
+        self.driver.init()
+
+
+    def server_stop(self):
+        if self._server:
+            self._server.stop()
+            self._server.join()
+            self._server = None
+        self.driver.stop_timer()
+
+
 
 class Api:
 
@@ -29,6 +184,7 @@ class Api:
         self._sequencer = None
         self._timer = None
         self._status = None
+
 
     def _get(self, url, **kwargs):
         host = config.app_host
@@ -88,7 +244,7 @@ class Api:
 
     def app_set_power(self, power):
         self._assert_app_running()
-        return self.app_call_controller("set_power", {"power": power}, controller="power")
+        return self.app_call_controller("set_power", {"power": power}, controller="home_trainer")
 
     def app_get_controller_status(self, controller=None):
         self._assert_app_started()
@@ -147,11 +303,15 @@ def wrap_api_error(fct):
             messagebox.showerror("Erreur", str(err))
     return wrapper
 
-class TkApp(tk.Tk, Api):
+
+
+
+
+class TkApp(tk.Tk):
 
     def __init__(self, auto_start=True):
         tk.Tk.__init__(self)
-        Api.__init__(self)
+        self.api = LocalApiDriver(self._on_data, True)
         signal.signal(signal.SIGINT, self.handler)
         self.auto_start = auto_start
         self.geometry("600x400")
@@ -191,7 +351,7 @@ class TkApp(tk.Tk, Api):
         frame_power.pack(side=BOTTOM, expand=True, fill=X)
 
 
-        self.server_start()
+        self.api.server_start()
 
     def show_infos(self):
         self.frame_info.pack(side=TOP, expand=True, fill=X)
@@ -205,7 +365,9 @@ class TkApp(tk.Tk, Api):
 
     @wrap_api_error
     def _set_power(self):
-        self.app_set_power(self.power_value.get())
+
+        self.api.driver.use_controller("home_trainer")
+        self.api.driver.ctrl_call_function("set_power", self.power_value.get())
 
     def _frame_power(self):
         f = tk.Frame(self)
@@ -269,10 +431,10 @@ class TkApp(tk.Tk, Api):
 
     @wrap_api_error
     def _toggle_start(self):
-        if not self._server:
+        if not self.api._server:
             raise ApiException(f"Le serveur n'est pas lancé")
-        if self._started:
-            self.app_stop()
+        if self.api.driver._started:
+            self.api.driver.stop()
             self._btn_start["text"] = "Ecouter"
             with self.stat_lock:
                 self.stats = None
@@ -284,7 +446,7 @@ class TkApp(tk.Tk, Api):
 
             for i in range(100):
                 try:
-                    self.app_start()
+                    self.api.driver.start()
                     break
                 except requests.exceptions.ConnectionError as err:
                     time.sleep(0.1)
@@ -295,11 +457,11 @@ class TkApp(tk.Tk, Api):
     
     @wrap_api_error
     def _toggle_pause(self):
-        if not self._server:
+        if not self.api._server:
             raise ApiException(f"Le serveur n'est pas lancé")
-        if not self._started:
+        if not self.api.driver._started:
             raise ApiException(f"L'application n'est pas lancé")
-        self.app_pause()
+        self.api.driver.pause()
 
 
     def _on_timer(self):
@@ -325,11 +487,32 @@ class TkApp(tk.Tk, Api):
                 self._bpm_max["text"] = f"{int(self.stats.max.bpm)}"
 
 
+    def _on_data(self, feature, d):
+        print("data recieved !!!")
+        with self.stat_lock:
+
+            if not self.stats: return
+            self.stats.append(d)
+
+            if not self.stats.last: return
+            self._power["text"] = f"{int(self.stats.last.power)}"
+            self._power_avg["text"] = f"{int(self.stats.avg.power)}"
+            self._power_max["text"] = f"{int(self.stats.max.power)}"
+
+            self._speed["text"] = f"{int(self.stats.last.speed)}"
+            self._speed_avg["text"] = f"{int(self.stats.avg.speed)}"
+            self._speed_max["text"] = f"{int(self.stats.max.speed)}"
+
+            self._bpm["text"] = f"{int(self.stats.last.bpm)}"
+            self._bpm_avg["text"] = f"{int(self.stats.avg.bpm)}"
+            self._bpm_max["text"] = f"{int(self.stats.max.bpm)}"
+
+
 
     def handler(self, signal_received, frame):
         # Handle any cleanup here
         print('SIGINT or CTRL-C detected. Exiting gracefully')
-        self.app_stop()
+        self.api.driver.stop()
         exit(0)
 
     def show(self):
@@ -339,8 +522,8 @@ class TkApp(tk.Tk, Api):
 
     def _poll_status(self):
         try:
-            self.app_status()
-            if self._status["status"] == "CONNECTING":
+            self.api.driver.get_status()
+            if self.api.driver._status["status"] == "CONNECTING":
                 raise Exception()
 
             self.status_label["text"] = "Connecté !"
@@ -353,7 +536,7 @@ class TkApp(tk.Tk, Api):
     def destroy(self):
         if self.stats:
             self.stats.close()
-        self.app_stop()
+        self.api.driver.stop()
         super().destroy()
 
 

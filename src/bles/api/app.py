@@ -8,17 +8,16 @@ from fastapi import Body, Request
 from pydantic import BaseModel
 
 from bles.api.server import HttpBaseServer, Get, Post, Put, Delete, JsonBody
-from bles.ble import features
-from bles.controller import list_controller, get_controller
-from bles.controller.base import ControllerFunction
-from bles.sequencer.base import ControllableSequencer, SequencerConfig
-from bles.simulator.base_simulator import PowerSimulator
+from bles.core.ble import features
+from bles.core.controller import list_controller, get_controller
+from bles.core.controller.base import ControllerFunction, BaseController
+from bles.core.sequencer.base import ControllableSequencer, SequencerConfig
+from bles.core.simulator.base_simulator import PowerSimulator
 
 
 class FunctionCall(BaseModel):
     name: str
     arguments: dict = None
-
 
 
 class ServerInterface(HttpBaseServer):
@@ -97,6 +96,7 @@ class ServerInterface(HttpBaseServer):
     @Get("/sequencer/controllers/{controller}/use")
     def _get_controllers_use(self, controller: str):
         self._assert_started()
+        print("----------", controller)
         self.sequencer.use_controller(controller)
 
     @Get("/sequencer/controllers/{controller}/status")
@@ -110,15 +110,46 @@ class ServerInterface(HttpBaseServer):
     def _get_controllers_call(self, controller: str, body: FunctionCall):
         self._assert_started()
         ctrl =  self.sequencer._controllers[controller]
-        ctrl : ControllerFunction
+        ctrl : BaseController
         return ctrl.call_function(body.name, body.arguments)
 
+    @Get("/sequencer/controllers/{controller}/prop/{name}/{value}")
+    def _set_controller_params(self, controller: str, name : str, value : str):
+        self._assert_started()
+        ctrl =  self.sequencer._controllers[controller]
+        ctrl : BaseController
+        return ctrl.set_prop(name, value)
 
-    @Get("/sequencer/controller/call")
-    def _get_current_controller_status(self, body: FunctionCall):
+    @Get("/sequencer/controllers/{controller}/prop/{name}")
+    def _get_controller_params(self, controller: str, name : str):
+        self._assert_started()
+        ctrl =  self.sequencer._controllers[controller]
+        ctrl : BaseController
+        return ctrl.get_prop(name)
+
+
+    @Post("/sequencer/controller/call")
+    def _get_current_controller_call(self, body: FunctionCall):
         name = self.controller_name
+        print(f"Set prop {name} to {body}")
         if name:
             return self._get_controllers_call(name, body)
+
+    @Get("/sequencer/controller/call/prop/{name}")
+    def _get_current_controller_prop(self, name : str, value : str):
+        name = self.controller_name
+        if name:
+            ctrl = self.sequencer._controllers[name]
+            ctrl: BaseController
+            return ctrl.set_prop(name, value)
+
+    @Get("/sequencer/controller/call/prop/{name}/{value}")
+    def _set_current_controller_prop(self, name : str):
+        name = self.controller_name
+        if name:
+            ctrl = self.sequencer._controllers[name]
+            ctrl: BaseController
+            return ctrl.get_prop(name)
 
     def _on_data(self, feature, data):
         with self.sequencer.data_lock:

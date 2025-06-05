@@ -4,15 +4,16 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
-from bles.ble import get_ble_client, features
+from bles.core.ble import get_ble_client, features
 from bles.common.config import SequencerConfig, config
-from bles.controller.base import get_controller, list_controller, BaseController
-from bles.simulator.base_simulator import PowerSimulator, show
-from bles.stats.base import Stat
+from bles.core.controller.base import get_controller, list_controller, BaseController
+from bles.core.driver.base import BaseDriver
+from bles.core.simulator.base_simulator import PowerSimulator, show
+from bles.app.stats.base import Stat
 
 
 
-class BaseSequencer(ABC):
+class BaseSequencer(BaseDriver):
     STATUS_IDLE = "IDLE"
     STATUS_CONNECTING = "CONNECTING"
     STATUS_RUNNING = "RUNNING"
@@ -35,6 +36,7 @@ class BaseSequencer(ABC):
         self._on_data_handler = on_data_cb
         self._last_notify = 0
         self.data = {}
+        self.ready = False
 
     def set_on_data_handler(self, cb):
         self._on_data_handler = cb
@@ -56,6 +58,9 @@ class BaseSequencer(ABC):
 
     def get_controller(self):
         return self._current_controller
+
+    def get_controller_name(self):
+        return self._current_controller._name_ if self._current_controller else None
 
     def _connect_devices(self):
         debug = self.debug
@@ -105,7 +110,6 @@ class BaseSequencer(ABC):
             cls = get_controller(name)
             controller = cls(self, **ctrl["params"])
             self._controllers[name] = controller
-
 
 
 
@@ -188,12 +192,47 @@ class BaseSequencer(ABC):
             self.join()
 
 
+    def set_prop(self, name, value):
+        if self._current_controller is None:
+            raise ValueError(f"Aucun controller n'es selectionné")
+        return self._current_controller.set_prop(name, value)
+
+
+    def set_prop(self, name, value):
+        if self._current_controller is None:
+            raise ValueError(f"Aucun controller n'es selectionné")
+        return self._current_controller.set_prop(name, value)
+
+
+    def set_prop(self, name, value):
+        if self._current_controller is None:
+            raise ValueError(f"Aucun controller n'es selectionné")
+        return self._current_controller.set_prop(name, value)
+
+
+    def ctrl_set_prop(self, name, value):
+        if self._current_controller is None:
+            raise ValueError(f"Aucun controller n'es selectionné")
+        return self._current_controller.set_prop(name, value)
+
+    def ctrl_get_prop(self, name):
+        if self._current_controller is None:
+            raise ValueError(f"Aucun controller n'es selectionné")
+        return self._current_controllerget_prop(name)
+
+    def ctrl_call_function(self, name, data):
+        if self._current_controller is None:
+            raise ValueError(f"Aucun controller n'es selectionné")
+        return self._current_controller.call_function(name, data)
+
     def run(self):
         self.status = self.STATUS_CONNECTING
         self._connect_devices()
+        self.ready = True
         self.status = self.STATUS_RUNNING
         while not self._stopped.is_set():
             self._stopped.wait()
+        self.ready = False
 
 
     def __enter__(self):

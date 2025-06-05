@@ -3,8 +3,8 @@ import time
 from dataclasses import dataclass
 
 from pycycling.heart_rate_service import HeartRateService
-from bles.ble import features
-from bles.ble.base import register_ble_client, BleClient
+from bles.core.ble import features
+from bles.core.ble.base import register_ble_client, BleClient
 
 
 @dataclass

@@ -1,9 +1,9 @@
 import copy
 import threading
 
-from bles.ble import features
-from bles.ble.fitness import CyclingData
-from bles.ble.heart import HRSState
+from bles.core.ble import features
+from bles.core.ble.fitness import CyclingData
+from bles.core.ble.heart import HRSState
 
 
 class Variable:
@@ -78,6 +78,22 @@ class IntegerVar(TypedVariable):
         if isinstance(v, str):
             v = v.replace(",", ".")
         return super().cast(v)
+
+
+class StringVar(TypedVariable):
+    _type_ = str
+
+class EnumVar(StringVar):
+    def __init__(self, choices, default=None, required=None):
+        super().__init__(None, None, None,  default, required)
+        self.choices = choices
+
+    def valid_value(self, v=Variable.Empty):
+        v = super().valid_value(v)
+        if v not in self.choices:
+            raise ValueError(f"Found {v} not in {tuple(self.choices)}")
+        return v
+
 
 class PositiveIntegerVar(IntegerVar):
     _min_ = 0
@@ -343,73 +359,133 @@ class BaseController:
     def _validate(self):
         pass
 
+#
+# @register_controller
+# class PowerController(BaseController):
+#     _name_ = "power"
+#     _requires_ = {features.cycling}
+#
+#     power = IntegerVar(lambda x: x.get_client(features.cycling).power_range[0],
+#                             lambda x: x.get_client(features.cycling).power_range[1],
+#                             step=10, default=100)
+#
+#     def _validate(self):
+#         client = self.sequencer.get_client(features.cycling)
+#         client.set_power(self["power"])
+#
+#     @ControllerFunction(power=power)
+#     def set_power(self, power):
+#         self.set_prop("power", power)
+#         self.validate()
+#
+#     def _on_data(self, data):
+#         if isinstance(data, CyclingData):
+#             pass
+#         else:
+#             raise TypeError(f"{data.__class__} not handled")
+#
+# @register_controller
+# class ResistanceController(BaseController):
+#     _name_ = "resistance"
+#     _requires_ = {features.cycling}
+#
+#     resistance = IntegerVar(lambda x: x.get_client(features.cycling).resistance_range[0],
+#                             lambda x: x.get_client(features.cycling).resistance_range[1],
+#                             step=10, default=0)
+#
+#     @ControllerFunction()
+#     def set_resistance(self, resistance):
+#         self.set_prop("resistance", resistance)
+#         self.validate()
+#
+#     def _on_data(self, data):
+#         if isinstance(data, CyclingData):
+#             pass
+#         else:
+#             raise TypeError(f"{data.__class__} not handled")
+#
+# @register_controller
+# class SimulationController(BaseController):
+#     _name_ = "simulation"
+#     _requires_ = {features.cycling}
+#
+#     wind = FloatVar(default=0)
+#     grade = FloatVar(default=0)
+#     cr = FloatVar(default=0)
+#     cw = FloatVar(default=0)
+#
+#     @ControllerFunction(wind=wind, grade=grade, cr=cr, cw=cw)
+#     def set_simulation_params(self, **kwargs):
+#         for k, v in kwargs.items():
+#             self._fields[k].set_value(v)
+#
+#         self.validate()
+#
+#     def _on_data(self, data):
+#         if isinstance(data, CyclingData):
+#             pass
+#         else:
+#             raise TypeError(f"{data.__class__} not handled")
+
 
 @register_controller
-class PowerController(BaseController):
-    _name_ = "power"
+class HomeTrainerController(BaseController):
+    _name_ = "home_trainer"
     _requires_ = {features.cycling}
 
-    power = IntegerVar(lambda x: x.get_client(features.cycling).power_range[0],
-                            lambda x: x.get_client(features.cycling).power_range[1],
-                            step=10, default=100)
+    RESISTANCE = "resistance"
+    POWER = "power"
+    SIMULATION = "simulation"
 
-    def _on_data(self, data):
-        if isinstance(data, CyclingData):
-            pass
-        else:
-            raise TypeError(f"{data.__class__} not handled")
-
-    def _validate(self):
-        client = self.sequencer.get_client(features.cycling)
-        client.set_power(self["power"])
-
-    @ControllerFunction(power=power)
-    def set_power(self, power):
-        self.set_prop("power", power)
-        self.validate()
-
-@register_controller
-class ResistanceController(BaseController):
-    _name_ = "resistance"
-    _requires_ = {features.cycling}
-
-    resistance = IntegerVar(lambda x: x.get_client(features.cycling).resistance_range[0],
-                            lambda x: x.get_client(features.cycling).resistance_range[1],
-                            step=10, default=0)
-
-    def _on_data(self, data):
-        if isinstance(data, CyclingData):
-            pass
-        else:
-            raise TypeError(f"{data.__class__} not handled")
-
-    @ControllerFunction()
-    def set_resistance(self, resistance):
-        self.set_prop("resistance", resistance)
-        self.validate()
-
-@register_controller
-class SimulationController(BaseController):
-    _name_ = "simulation"
-    _requires_ = {features.cycling}
-
+    current = EnumVar(choices={RESISTANCE, POWER, SIMULATION}, default=POWER)
     wind = FloatVar(default=0)
     grade = FloatVar(default=0)
     cr = FloatVar(default=0)
     cw = FloatVar(default=0)
+    resistance = IntegerVar(lambda x: x.get_client(features.cycling).resistance_range[0],
+                            lambda x: x.get_client(features.cycling).resistance_range[1],
+                            step=10, default=0)
+    power = IntegerVar(lambda x: x.get_client(features.cycling).power_range[0],
+                            lambda x: x.get_client(features.cycling).power_range[1],
+                            step=10, default=100)
+
+
+
+    def __init__(self, sequencer, **kwargs):
+        super().__init__(sequencer, **kwargs)
+        self._last_usage = None
 
     @ControllerFunction(wind=wind, grade=grade, cr=cr, cw=cw)
     def set_simulation_params(self, **kwargs):
         for k, v in kwargs.items():
             self._fields[k].set_value(v)
-
+        self.set_prop("current", self.SIMULATION)
         self.validate()
 
-    def _on_data(self, data):
-        if isinstance(data, CyclingData):
-            pass
-        else:
-            raise TypeError(f"{data.__class__} not handled")
+
+    @ControllerFunction()
+    def set_resistance(self, resistance):
+        self.set_prop("resistance", resistance)
+        self.set_prop("current", self.RESISTANCE)
+        self.validate()
+
+
+    @ControllerFunction(power=power)
+    def set_power(self, power):
+        self.set_prop("power", power)
+        self.set_prop("current", self.POWER)
+        self.validate()
+
+    def _validate(self):
+        client = self.sequencer.get_client(features.cycling)
+        current =  self["current"]
+        if current == "power":
+            client.set_power(self["power"])
+        elif current == "resistance":
+            client.set_resistance(self["resistance"])
+        elif current == "simulation":
+            client.set_simulation_param(self["wind"], self["grad"], self["cr"], self["cw"])
+
 
 
 @register_controller

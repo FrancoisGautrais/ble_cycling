@@ -6,12 +6,12 @@ from queue import Queue
 
 from bleak import BleakClient
 from pycycling.fitness_machine_service import FitnessMachineService
-from bles.ble import features
+from bles.core.ble import features
 from dataclasses import dataclass
 
 from pycycling.ftms_parsers import IndoorBikeData
 
-from bles.ble.base import BaseBleClient, FeatureNotAvailable, SetValue, register_ble_client, BleClient
+from bles.core.ble.base import BaseBleClient, FeatureNotAvailable, SetValue, register_ble_client, BleClient
 
 
 @dataclass

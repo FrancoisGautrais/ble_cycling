@@ -126,19 +126,8 @@ class Config:
                 }
               },
               "controllers": {
-                "power": {
-                  "name": "power",
-                  "params": {
 
-                  }
-                },
-                "resistance": {
-                  "name": "resistance",
-                  "params": {
-
-                  }
-                },
-                "simulation": {
+                "home_trainer": {
                   "name": "simulation",
                   "params": {
 
